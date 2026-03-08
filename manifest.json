@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Ruutu.fi Trakt Scrobbler",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Automatically scrobble TV shows and movies from Ruutu.fi to your Trakt.tv profile.",
   "homepage_url": "https://github.com/Roeygon/ruutu-trakt-scrobbler",
   "browser_specific_settings": {
