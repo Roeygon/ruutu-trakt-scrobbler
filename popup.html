@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #16162a; color: #d0d0d0; font-size: 13px;
+    }
+
+    /* Header */
+    .hdr {
+      background: linear-gradient(135deg, #ed1c24, #b71c1c);
+      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .hdr-icon {
+      width: 28px; height: 28px; background: rgba(255,255,255,.2);
+      border-radius: 7px; display: flex; align-items: center;
+      justify-content: center; font-size: 15px;
+    }
+    .hdr h1 { font-size: 14px; color: #fff; font-weight: 600; }
+    .hdr small { font-size: 10px; color: rgba(255,255,255,.7); }
+
+    /* Sections */
+    .sec { padding: 12px 14px; border-bottom: 1px solid #252545; }
+    .sec:last-child { border-bottom: none; }
+    .lbl {
+      font-size: 9px; text-transform: uppercase; letter-spacing: .8px;
+      color: #555; margin-bottom: 7px;
+    }
+
+    /* Status bar */
+    .bar {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 10px; border-radius: 6px; background: #222244;
+      font-size: 12px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-g { background: #4caf50; } .dot-y { background: #ff9800; } .dot-r { background: #f44336; }
+
+    /* Buttons */
+    .btn {
+      display: block; width: 100%; padding: 9px; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px;
+      text-align: center;
+    }
+    .btn:hover { opacity: .9; }
+    .btn-red { background: linear-gradient(135deg, #ed1c24, #b71c1c); color: #fff; }
+    .btn-orange { background: linear-gradient(135deg, #ff9800, #e65100); color: #fff; }
+    .btn-ghost {
+      background: none; border: 1px solid #f44336; color: #f44336;
+      font-size: 11px; padding: 6px;
+    }
+
+    /* Device code */
+    .code-box {
+      text-align: center; padding: 14px; background: #222244;
+      border-radius: 8px; margin-top: 10px;
+    }
+    .code-box .code {
+      font-size: 30px; font-weight: 700; letter-spacing: 5px;
+      color: #ed1c24; font-family: 'SF Mono', 'Consolas', monospace;
+      margin: 6px 0;
+    }
+    .code-box .sm { font-size: 10px; color: #666; }
+    .code-box a.link {
+      display: inline-block; margin-top: 8px; padding: 6px 14px;
+      background: #ed1c24; color: #fff; border-radius: 5px;
+      text-decoration: none; font-size: 11px; font-weight: 500;
+    }
+
+    /* Now playing */
+    .np {
+      padding: 10px; background: #222244; border-radius: 7px; margin-top: 8px;
+    }
+    .np .tag {
+      font-size: 9px; color: #ed1c24; text-transform: uppercase;
+      letter-spacing: .8px; margin-bottom: 2px;
+    }
+    .np .title { font-weight: 600; font-size: 13px; color: #fff; }
+    .np .sub { font-size: 11px; color: #888; margin-top: 1px; }
+
+    /* Messages */
+    .msg {
+      padding: 6px 9px; border-radius: 5px; font-size: 11px; margin-top: 7px;
+    }
+    .msg-ok { background: rgba(76,175,80,.15); color: #4caf50; }
+    .msg-err { background: rgba(244,67,54,.15); color: #f44336; }
+    .msg-info { background: rgba(33,150,243,.1); color: #64b5f6; }
+
+    .hidden { display: none; }
+    .spin {
+      display: inline-block; width: 11px; height: 11px;
+      border: 2px solid #444; border-top-color: #ed1c24;
+      border-radius: 50%; animation: sp .8s linear infinite;
+      margin-right: 4px; vertical-align: middle;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* Correction input */
+    .cinput {
+      width: 100%; padding: 6px 8px; border: 1px solid #333; border-radius: 5px;
+      background: #1a1a30; color: #e0e0e0; font-size: 12px; outline: none;
+    }
+    .cinput:focus { border-color: #ed1c24; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-icon">&#x1f4fa;</div>
+    <div><h1>Ruutu &#x2192; Trakt</h1><small>Scrobbler v1.1</small></div>
+  </div>
+
+  <!-- Status -->
+  <div class="sec">
+    <div class="bar">
+      <div class="dot dot-r" id="dot"></div>
+      <span id="statusText">Checking...</span>
+    </div>
+
+    <!-- Now Playing -->
+    <div class="np hidden" id="npBox">
+      <div class="tag" id="npTag"></div>
+      <div class="title" id="npTitle"></div>
+      <div class="sub" id="npSub"></div>
+      <button class="btn btn-orange" id="checkinBtn">&#x1f4e1; Check in on Trakt</button>
+      <div id="checkinMsg"></div>
+    </div>
+  </div>
+
+  <!-- Auth: not logged in -->
+  <div class="sec hidden" id="authSec">
+    <button class="btn btn-red" id="authBtn">&#x1f517; Connect to Trakt.tv</button>
+    <div id="codeArea"></div>
+    <div id="authMsg"></div>
+  </div>
+
+  <!-- Connected -->
+  <div class="sec hidden" id="connSec">
+    <div class="bar">
+      <div class="dot dot-g"></div>
+      <span>Connected to Trakt.tv</span>
+    </div>
+    <button class="btn btn-ghost" id="logoutBtn">Disconnect</button>
+  </div>
+
+  <!-- Correction input -->
+  <div class="sec hidden" id="correctSec">
+    <div class="lbl">Fix wrong show match</div>
+    <div style="font-size:11px;color:#888;margin-bottom:5px;">
+      Paste the correct Trakt show URL:
+    </div>
+    <input type="text" class="cinput" id="correctUrl" placeholder="https://trakt.tv/shows/ghosts-2019">
+    <button class="btn btn-red" id="correctBtn" style="font-size:11px;padding:6px;margin-top:5px;">Save correction</button>
+    <div id="correctMsg"></div>
+  </div>
+
+  <!-- Saved Corrections -->
+  <div class="sec hidden" id="correctionsSec">
+    <div class="lbl">Saved show corrections</div>
+    <div id="correctionsList" style="font-size:11px;"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# API credentials — never commit
+config.js
+
+# Build artifacts
+*.zip
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
