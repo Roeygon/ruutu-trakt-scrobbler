@@ -95,10 +95,11 @@
       document.body.appendChild(this.el);
     }
 
-    _showHtml(html, autoHide) {
+    _showNode(node, autoHide, noPointerEvents) {
       this._create();
-      this.el.innerHTML = html;
-      this.el.style.pointerEvents = 'auto';
+      this.el.textContent = '';
+      this.el.appendChild(node);
+      this.el.style.pointerEvents = noPointerEvents ? 'none' : 'auto';
       var self = this;
       requestAnimationFrame(function() {
         self.el.style.opacity = '1';
@@ -111,8 +112,9 @@
     }
 
     show(text, autoHide) {
-      this._showHtml(this._esc(text), autoHide || 5000);
-      this.el.style.pointerEvents = 'none';
+      var span = document.createElement('span');
+      span.textContent = text;
+      this._showNode(span, autoHide || 5000, true);
     }
 
     hide() {
@@ -134,22 +136,33 @@
       }
 
       var uncertain = showInfo && showInfo.uncertain;
-      var wrongBtn = metadata.type === 'episode'
-        ? ' <span id="trakt-wrong-btn" style="' +
-          'display:inline-block;margin-left:6px;padding:1px 6px;' +
-          'background:rgba(255,152,0,0.2);color:#ff9800;border-radius:3px;' +
-          'cursor:pointer;font-size:10px;border:1px solid rgba(255,152,0,0.3);' +
-          '">Wrong?</span>'
-        : '';
-
       var icon = uncertain ? '\u26a0\ufe0f' : '\ud83d\udcfa';
       var color = uncertain ? '#ff9800' : '#4caf50';
 
-      this._showHtml(
-        '<span style="color:' + color + ';">' + icon + ' Scrobbling</span>' + wrongBtn +
-        '<div style="font-weight:600;font-size:13px;color:#fff;margin-top:2px;">' + this._esc(title) + '</div>',
-        8000
-      );
+      var frag = document.createDocumentFragment();
+
+      var statusSpan = document.createElement('span');
+      statusSpan.style.color = color;
+      statusSpan.textContent = icon + ' Scrobbling';
+      frag.appendChild(statusSpan);
+
+      if (metadata.type === 'episode') {
+        var wrongBtn = document.createElement('span');
+        wrongBtn.id = 'trakt-wrong-btn';
+        wrongBtn.style.cssText =
+          'display:inline-block;margin-left:6px;padding:1px 6px;' +
+          'background:rgba(255,152,0,0.2);color:#ff9800;border-radius:3px;' +
+          'cursor:pointer;font-size:10px;border:1px solid rgba(255,152,0,0.3);';
+        wrongBtn.textContent = 'Wrong?';
+        frag.appendChild(wrongBtn);
+      }
+
+      var titleDiv = document.createElement('div');
+      titleDiv.style.cssText = 'font-weight:600;font-size:13px;color:#fff;margin-top:2px;';
+      titleDiv.textContent = title;
+      frag.appendChild(titleDiv);
+
+      this._showNode(frag, 8000);
 
       var self = this;
       setTimeout(function() {
@@ -169,16 +182,25 @@
     }
 
     showNotFound(showTitle) {
-      var self = this;
-      this._showHtml(
-        '<div style="color:#f44336;">\u26a0\ufe0f "' + this._esc(showTitle) + '" not found on Trakt</div>' +
-        '<span id="trakt-search-btn" style="' +
+      var frag = document.createDocumentFragment();
+
+      var msgDiv = document.createElement('div');
+      msgDiv.style.color = '#f44336';
+      msgDiv.textContent = '\u26a0\ufe0f "' + showTitle + '" not found on Trakt';
+      frag.appendChild(msgDiv);
+
+      var searchBtn = document.createElement('span');
+      searchBtn.id = 'trakt-search-btn';
+      searchBtn.style.cssText =
         'display:inline-block;margin-top:4px;padding:2px 8px;' +
         'background:rgba(237,28,36,0.2);color:#ed1c24;border-radius:3px;' +
-        'cursor:pointer;font-size:11px;border:1px solid rgba(237,28,36,0.3);' +
-        '">Search on Trakt</span>',
-        0
-      );
+        'cursor:pointer;font-size:11px;border:1px solid rgba(237,28,36,0.3);';
+      searchBtn.textContent = 'Search on Trakt';
+      frag.appendChild(searchBtn);
+
+      this._showNode(frag, 0);
+
+      var self = this;
       setTimeout(function() {
         var btn = document.getElementById('trakt-search-btn');
         if (btn && self.onWrongShow) {
@@ -188,22 +210,23 @@
     }
 
     showCorrectionMode() {
-      this._showHtml(
-        '<div style="color:#64b5f6;">\u23f8 Video paused</div>' +
-        '<div style="margin-top:3px;font-size:11px;color:#aaa;">' +
-        'Find the right show on Trakt, then paste the URL in the extension popup.</div>',
-        0
-      );
+      var frag = document.createDocumentFragment();
+
+      var pausedDiv = document.createElement('div');
+      pausedDiv.style.color = '#64b5f6';
+      pausedDiv.textContent = '\u23f8 Video paused';
+      frag.appendChild(pausedDiv);
+
+      var hintDiv = document.createElement('div');
+      hintDiv.style.cssText = 'margin-top:3px;font-size:11px;color:#aaa;';
+      hintDiv.textContent = 'Find the right show on Trakt, then paste the URL in the extension popup.';
+      frag.appendChild(hintDiv);
+
+      this._showNode(frag, 0);
     }
 
     showError(msg) {
       this.show('\u26a0\ufe0f ' + msg, 5000);
-    }
-
-    _esc(s) {
-      var d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
     }
   }
 
