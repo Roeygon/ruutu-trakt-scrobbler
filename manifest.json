@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Ruutu.fi Trakt Scrobbler",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Automatically scrobble TV shows and movies from Ruutu.fi to your Trakt.tv profile.",
   "homepage_url": "https://github.com/Roeygon/ruutu-trakt-scrobbler",
   "browser_specific_settings": {
@@ -18,12 +18,16 @@
     "storage",
     "tabs",
     "https://api.trakt.tv/*",
-    "https://www.ruutu.fi/*"
+    "https://www.ruutu.fi/*",
+    "https://areena.yle.fi/*",
+    "https://www.mtv.fi/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://www.ruutu.fi/video/*"
+        "https://www.ruutu.fi/*",
+        "https://areena.yle.fi/*",
+        "https://www.mtv.fi/*"
       ],
       "js": [
         "content.js"

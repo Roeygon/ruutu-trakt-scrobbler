@@ -69,6 +69,138 @@
   }
 
   // =====================================================================
+  // YLE AREENA SERVICE
+  // =====================================================================
+
+  class YleAreenaService extends BaseService {
+    static match() {
+      return location.hostname === 'areena.yle.fi' && /^\/1-\d+/.test(location.pathname);
+    }
+
+    getMetadata() {
+      var scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (var i = 0; i < scripts.length; i++) {
+        try {
+          var data = JSON.parse(scripts[i].textContent);
+          // Handle both direct object and @graph array
+          var items = data['@graph'] ? data['@graph'] : [data];
+          for (var j = 0; j < items.length; j++) {
+            var item = items[j];
+            if (item['@type'] === 'TVEpisode') {
+              var showName = item.partOfSeries && item.partOfSeries.name;
+              var season = item.partOfSeason && item.partOfSeason.seasonNumber;
+              var rawName = item.name || '';
+              var episodeNum = null;
+              var title = rawName;
+
+              // Yle names are like "Season 1, 1/8 New Neighbour" — extract episode number and title
+              var epMatch = rawName.match(/(?:Season\s+\d+,\s+)?(\d+)\/\d+\s*(.*)/i);
+              if (epMatch) {
+                episodeNum = parseInt(epMatch[1]);
+                title = epMatch[2].trim() || rawName;
+              }
+
+              return {
+                type: 'episode',
+                show: showName,
+                season: season,
+                episode: episodeNum,
+                title: title,
+                duration: this._parseDuration(item.duration || (item.video && item.video.duration)),
+              };
+            }
+            if (item['@type'] === 'Movie' || item['@type'] === 'VideoObject') {
+              return {
+                type: 'movie',
+                title: item.name,
+                year: item.dateCreated ? parseInt(item.dateCreated) : null,
+                duration: this._parseDuration(item.duration || (item.video && item.video.duration)),
+              };
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+      return this._fromMeta();
+    }
+
+    _fromMeta() {
+      var ogTitle = document.querySelector('meta[property="og:title"]');
+      if (!ogTitle || !ogTitle.content) return null;
+      // Format: "Episode Title | Show Name"
+      var parts = ogTitle.content.split('|');
+      if (parts.length >= 2) {
+        return { type: 'episode', show: parts[1].trim(), title: parts[0].trim() };
+      }
+      return { type: 'movie', title: ogTitle.content.trim() };
+    }
+  }
+
+  // =====================================================================
+  // MTV KATSOMO SERVICE
+  // =====================================================================
+
+  class MtvKatsomoService extends BaseService {
+    static match() {
+      return location.hostname === 'www.mtv.fi' && location.pathname.startsWith('/video/');
+    }
+
+    getMetadata() {
+      var ogTitle = document.querySelector('meta[property="og:title"]');
+      var ogDesc  = document.querySelector('meta[property="og:description"]');
+      var rawTitle = (ogTitle && ogTitle.content) || document.title || '';
+      var desc     = (ogDesc  && ogDesc.content)  || '';
+
+      // Strip trailing site suffix
+      var cleanTitle = rawTitle.replace(/\s*-\s*Katso\s+MTV\s+Katsomossa\s*$/i, '').trim();
+
+      var seasonNum  = null;
+      var episodeNum = null;
+
+      // Description often starts with "Kausi X, Y/Z." — most reliable source
+      var dKausi = desc.match(/Kausi\s+(\d+)/i);
+      var dJakso = desc.match(/Jakso\s+(\d+)/i);
+      var dPos   = desc.match(/(\d+)\/\d+/);
+      if (dKausi) seasonNum  = parseInt(dKausi[1]);
+      if (dJakso) episodeNum = parseInt(dJakso[1]);
+      else if (dPos) episodeNum = parseInt(dPos[1]);
+
+      // Also try title: "Show Name - Jakso X, Kausi Y"
+      var tKausi = cleanTitle.match(/Kausi\s+(\d+)/i);
+      var tJakso = cleanTitle.match(/Jakso\s+(\d+)/i);
+      if (!seasonNum  && tKausi) seasonNum  = parseInt(tKausi[1]);
+      if (!episodeNum && tJakso) episodeNum = parseInt(tJakso[1]);
+
+      // Extract show name — everything before the first " - Jakso/Kausi" segment
+      var showName = null;
+      var epTitle  = null;
+      var tJaksoMatch = cleanTitle.match(/^(.+?)\s*-\s*(?:Jakso|Kausi)\s+\d+/i);
+      if (tJaksoMatch) {
+        showName = tJaksoMatch[1].trim();
+      } else {
+        var parts = cleanTitle.split(/\s*-\s*/);
+        showName = parts[0].trim();
+        if (parts.length >= 3 && !parts[1].match(/Kausi|Jakso/i)) {
+          epTitle = parts[1].trim();
+        }
+      }
+
+      if (!showName) return null;
+
+      if (seasonNum || episodeNum) {
+        return {
+          type: 'episode',
+          show: showName,
+          season: seasonNum,
+          episode: episodeNum,
+          title: epTitle,
+          duration: 0,
+        };
+      }
+      return { type: 'movie', title: showName };
+    }
+  }
+
+  // =====================================================================
   // OVERLAY -- On-page scrobble status display
   // =====================================================================
 
@@ -92,7 +224,17 @@
         'border-left:3px solid #ed1c24;' +
         'transition:opacity 0.4s,transform 0.4s;' +
         'opacity:0;transform:translateY(-8px);max-width:340px;';
-      document.body.appendChild(this.el);
+      (document.fullscreenElement || document.body).appendChild(this.el);
+
+      var self = this;
+      document.addEventListener('fullscreenchange', function() {
+        if (!self.el) return;
+        if (document.fullscreenElement) {
+          document.fullscreenElement.appendChild(self.el);
+        } else {
+          document.body.appendChild(self.el);
+        }
+      });
     }
 
     _showNode(node, autoHide, noPointerEvents) {
@@ -162,7 +304,7 @@
       titleDiv.textContent = title;
       frag.appendChild(titleDiv);
 
-      this._showNode(frag, 8000);
+      this._showNode(frag, 10000);
 
       var self = this;
       setTimeout(function() {
@@ -415,6 +557,8 @@
 
   var SERVICES = [
     RuutuService,
+    YleAreenaService,
+    MtvKatsomoService,
   ];
 
   // =====================================================================

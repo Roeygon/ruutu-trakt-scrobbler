@@ -34,28 +34,42 @@ document.addEventListener('DOMContentLoaded', async function() {
   var authSec   = document.getElementById('authSec');
   var connSec   = document.getElementById('connSec');
   var npBox     = document.getElementById('npBox');
+  var pollTimer = null;
 
   // -- Check Status ---------------------------------------------------
 
-  try {
-    var s = await api.runtime.sendMessage({ type: 'GET_STATUS' });
+  async function refreshStatus() {
+    try {
+      var s = await api.runtime.sendMessage({ type: 'GET_STATUS' });
 
-    if (s.authenticated) {
-      authSec.classList.add('hidden');
-      connSec.classList.remove('hidden');
-      dot.className = 'dot dot-g';
-      statusTxt.textContent = 'Connected & scrobbling';
+      if (s.authenticated) {
+        authSec.classList.add('hidden');
+        connSec.classList.remove('hidden');
+        dot.className = 'dot dot-g';
+        statusTxt.textContent = 'Connected & scrobbling';
 
-      if (s.nowPlaying) showNowPlaying(s.nowPlaying, s.nowPlayingInfo);
-    } else {
-      authSec.classList.remove('hidden');
-      connSec.classList.add('hidden');
-      dot.className = 'dot dot-y';
-      statusTxt.textContent = 'Not connected';
+        if (s.nowPlaying) {
+          showNowPlaying(s.nowPlaying, s.nowPlayingInfo);
+        } else {
+          npBox.classList.add('hidden');
+        }
+      } else {
+        authSec.classList.remove('hidden');
+        connSec.classList.add('hidden');
+        dot.className = 'dot dot-y';
+        statusTxt.textContent = 'Not connected';
+        npBox.classList.add('hidden');
+      }
+    } catch (e) {
+      statusTxt.textContent = 'Error';
     }
-  } catch (e) {
-    statusTxt.textContent = 'Error';
   }
+
+  await refreshStatus();
+
+  // Auto-refresh every 5 seconds while popup is open
+  pollTimer = setInterval(refreshStatus, 5000);
+  window.addEventListener('unload', function() { clearInterval(pollTimer); });
 
   // -- Now Playing ----------------------------------------------------
 
@@ -200,7 +214,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         setMsg(correctMsg, 'msg-ok', '\u2713 Saved: ' + r.info.trakt_title + yr);
         correctUrl.value = '';
 
-        var tabs = await api.tabs.query({ url: 'https://www.ruutu.fi/video/*' });
+        var ruutuTabs = await api.tabs.query({ url: 'https://www.ruutu.fi/video/*' });
+        var yleTabs   = await api.tabs.query({ url: 'https://areena.yle.fi/*' });
+        var mtvTabs   = await api.tabs.query({ url: 'https://www.mtv.fi/video/*' });
+        var tabs = ruutuTabs.concat(yleTabs).concat(mtvTabs);
         for (var i = 0; i < tabs.length; i++) {
           api.tabs.sendMessage(tabs[i].id, { type: 'CORRECTION_APPLIED' }).catch(function() {});
         }
@@ -267,4 +284,54 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   loadCorrections();
+  loadHistory();
+
+  // -- Recently Watched -----------------------------------------------
+
+  async function loadHistory() {
+    var sec  = document.getElementById('historySec');
+    var list = document.getElementById('historyList');
+    if (!sec || !list) return;
+
+    var r = await api.runtime.sendMessage({ type: 'GET_HISTORY', limit: 8 });
+    if (!r.ok || !r.history.length) { sec.classList.add('hidden'); return; }
+
+    sec.classList.remove('hidden');
+    clearEl(list);
+
+    for (var i = 0; i < r.history.length; i++) {
+      var entry = r.history[i];
+      var isEp  = entry.type === 'episode';
+
+      var row = mkEl('div');
+      row.className = 'hist-row';
+
+      var typeEl = mkEl('div');
+      typeEl.className = 'hist-type';
+      typeEl.textContent = isEp ? 'EP' : 'MV';
+      row.appendChild(typeEl);
+
+      var titleEl = mkEl('div');
+      titleEl.className = 'hist-title';
+      if (isEp && entry.show) {
+        titleEl.textContent = entry.show.title;
+      } else if (entry.movie) {
+        titleEl.textContent = entry.movie.title;
+      }
+      row.appendChild(titleEl);
+
+      var subEl = mkEl('div');
+      subEl.className = 'hist-sub';
+      if (isEp && entry.episode) {
+        var s = String(entry.episode.season || '?').padStart(2, '0');
+        var e = String(entry.episode.number || '?').padStart(2, '0');
+        subEl.textContent = 'S' + s + 'E' + e;
+      } else if (entry.movie && entry.movie.year) {
+        subEl.textContent = entry.movie.year;
+      }
+      row.appendChild(subEl);
+
+      list.appendChild(row);
+    }
+  }
 });

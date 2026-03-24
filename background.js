@@ -435,6 +435,12 @@ api.runtime.onMessage.addListener(function(msg, sender, respond) {
       });
       return true;
 
+    case 'GET_HISTORY':
+      traktGet('/users/me/history', { limit: msg.limit || 5 }).then(function(data) {
+        respond({ ok: !!data, history: data || [] });
+      });
+      return true;
+
     case 'OPEN_TRAKT_SEARCH':
       api.tabs.create({ url: 'https://trakt.tv/search?query=' + encodeURIComponent(msg.query || '') });
       respond({ ok: true });
